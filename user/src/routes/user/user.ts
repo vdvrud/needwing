@@ -1,128 +1,120 @@
 import express, { Request, Response } from 'express';
 const router = express.Router();
-import { User } from '../../models/user';
 import { check } from 'express-validator';
-import { validationErrorCheck } from '../../../common/validation';
+import { validationError } from '../../../common/validation';
 import { createResponse, response } from '../../../common/response';
 import { comparePassword, hashPassword } from '../../../common/password-methods';
 import { createToken } from '../../../common/jwt';
+import { Admin } from '../../models/admin';
+import { AdminDoc, AdminType } from '../../interfaces/models_interfaces';
+import { publishCreateUser } from '../../nats-events/pubs/user-created-pub';
+import { client } from '../../nats-wrapper';
+import { Subjects } from '../../nats-events/subjects';
 
+router.get('/t/test', (req, res) => {
+    res.send('working')
+})
 
-
-router.post('/registerUser', [
-    check('email', 'Email is not valid !')
+router.post('/existingAdmin', [
+    check('email')
     .isEmail(),
-    check('password', 'Password not valid !')
-    .not()
-    .isEmpty(),
-    validationErrorCheck
-],async(req: Request, res: Response) => {
+    validationError
+], async(req: Request, res: Response) => {
     try {
-        const { email, password } = req.body;
-        const exist = await User.aggregate([
+        const { email } = req.body;
+        const admins = await Admin.aggregate([
             {
                 $match: {
                     email
                 }
             }
         ]);
-        if(exist.length !== 0) {
-            return response(res, 400, createResponse('Email already exist !'))
-        }
-        const newUser = {
-            email, password: await hashPassword(password)
-        }
-        const created = await new User(newUser).save();
-        console.log(created, 'this is the created user');
-        response(res, 201, createResponse(created));
+        const admin: AdminDoc = admins[0];
+        response(res, 200, createResponse(admin));
     } catch (error) {
-        console.log(error, 'Error in registering user !');
-        response(res, 500, createResponse('Error in registering user !'))
+        console.log(error, 'Error in checking existing details !');
+        response(res, 500, createResponse('Error in checking existing details !'));
     }
 });
 
-router.post('/updateContact', [
-    check('contact', 'Contact not valid !')
-    .isLength({ min: 10, max: 10 }),
-    check('country_code')
-    .not()
-    .isEmpty(),
-    check('email', 'Email not valid !')
+router.post('/createAdmin', [
+    check('email', 'Email not valid')
     .isEmail(),
-    validationErrorCheck
+    check('password', 'Password should be atleast 8 characters and max 16 characters')
+    .isLength({ min: 8, max: 16 }),
+    check('c_password', 'Passwords doest not match !')
+    .isLength({ min: 8, max: 16 }),
+    validationError
 ], async(req: Request, res: Response) => {
     try {
-        const { email, contact, country_code } = req.body;
-        const user = await User.findOne({ email });
-        if(!user) {
-            return response(res, 400, createResponse('User does not exist !'))
+        const { email, password, c_password } = req.body;
+        if(password !== c_password) {
+            return response(res, 400, createResponse('Passwords does not match !'))
         }
-        user.primary_contact = {
-            contact, country_code
-        };
-        await user.save();
-        response(res, 200, createResponse(user));
+        const exist = await Admin.aggregate([
+            {
+                $match: {
+                    email
+                }
+            }
+        ]);
+        if(exist[0]) {
+            return response(res, 400, createResponse('Email already exist !'))
+        }
+        const hashed: string = await hashPassword(password);
+        const newAdmin = {
+            email, password: hashed
+        }
+        const created = await new Admin(newAdmin).save();
+        publishCreateUser(client(), Subjects.UserCreated, created);
+        response(res, 201, createResponse(created));
     } catch (error) {
-        console.log(error, 'Error in updating primary contact !')
-        response(res, 500, createResponse('Erorr in updating contact !'))
+        console.log(error, 'Error in creating admin !');
+        response(res, 500, createResponse('Error in creating admin'))
     }
 });
 
-
-router.post('/userLogin', [
-    check('password', 'Invalid Credentials !')
-    .not()
-    .isEmpty(),
-    check('entry', 'Please provide valid email or contact number !')
-    .not()
-    .isEmpty(),
-    validationErrorCheck
-],async(req: Request, res: Response) => {
+router.post('/checkPassword', [
+    check('email', 'Invalid credentails, please try again !')
+    .isEmail(),
+    check('password', 'Invalid credentails, please try again !')
+    .isLength({ min: 8, max: 16 }),
+    validationError
+], async(req: Request, res: Response) => {
     try {
-        let validEmail = false;
-        let query = {}
-        const { password, entry } = req.body;
-        const phoneRegex = /^(\+\d{1,2}\s?)?1?\-?\.?\s?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/;
-        const emailRegex = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-        emailRegex.test(entry) ? validEmail = true : validEmail = false;
-        if(!validEmail) {
-            let validPhone = false;
-            phoneRegex.test(entry) ? validPhone = true : validPhone = false;
-            if(!validPhone) {
-                return response(res, 400, createResponse('Please provide valid email or phone !'))
-            }
-            query = {
-                'primary_contact.contact': entry
-            }
-        } else {
-            query = {
-                email: entry
-            }
+        const { email, password } = req.body;
+        const exist = await Admin.findOne({ email }).lean();
+        if(!exist) {
+            return response(res, 400, createResponse('Something went wrong, please try agian !'));
         }
-        const exist = await User.aggregate([
-            {
-                $match: query
-            }
-        ]);
-
-        if(exist.length === 0) {
-            return response(res, 400, createResponse('Invalid Credentials !'))
-        }
-
-        const user = exist[0];
-        console.log(user, 'this is user')
-        const match = await comparePassword(password, user.password);
+        const match: boolean = await comparePassword(exist.password, password);
         if(!match) {
-            return response(res, 400, createResponse('Invalid Credentials !'))
+            return response(res, 400, createResponse('Invalid Credentials, please try again !'));
         }
+        const { _id, user_type, contact, email_verified } = exist;
+        const data = {
+            _id, email, user_type, contact, email_verified
+        }
+        const token = await createToken(data);
         const finalData = {
-            auth_token: await createToken({user}), ...user
+            token, user: data
         }
         response(res, 200, createResponse(finalData));
     } catch (error) {
-        console.log(error, 'Error in login');
-        response(res, 500, createResponse('Error in login'))
+        console.log(error, 'Error in checking password !');
+        response(res, 500, createResponse('Error in checking password !'))
     }
-})
+});
+
+const data = {
+    email: 'string',
+    password: 'string',
+    name: 'string',
+    contact: 'string',
+    email_verified: true,
+    user_type: AdminType.admin
+}
+
+
 
 export { router as userRouter };
