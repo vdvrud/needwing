@@ -1,13 +1,14 @@
 import express from 'express';
 import { json, urlencoded } from 'body-parser';
 import { userRouter } from "./routes/user/user";
+import cors from 'cors';
 
 const app = express();
 // app.set('trust proxy', true);
 app.use(json({ limit: '50mb' }));
 app.use(urlencoded({ limit: '50mb', extended: false }));
 
-
+app.use(cors())
 
 
 app.use('/api/users', userRouter);
