@@ -7,10 +7,9 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: 'true'
 spec:
   rules:
-    - host: needwing.com
+    - host: vd.com
       http:
         paths:
-          # - path: /api/users/?(.*)
           - path: /api/users/?(.*)
             backend:
               serviceName: user-srv

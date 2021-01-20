@@ -29,7 +29,10 @@ router.post('/existingAdmin', [
                 }
             }
         ]);
-        const admin: AdminDoc = admins[0];
+        let admin = admins[0];
+        if(!admin) {
+            admin = null;
+        }
         response(res, 200, createResponse(admin));
     } catch (error) {
         console.log(error, 'Error in checking existing details !');
