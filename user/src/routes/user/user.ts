@@ -11,7 +11,7 @@ import { publishCreateUser } from '../../nats-events/pubs/user-created-pub';
 import { client } from '../../nats-wrapper';
 import { Subjects } from '../../nats-events/subjects';
 
-router.get('/t/test', (req, res) => {
+router.get('/test', (req, res) => {
     res.send('working')
 })
 

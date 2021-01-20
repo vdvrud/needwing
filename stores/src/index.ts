@@ -9,10 +9,8 @@ const db = async() => {
     // if (!process.env.MONGO_URI) {
     //   throw new Error("MONGO_URI must be defined");
     // }
-    // "mongodb+srv://wings:wings@cluster0.uve59.mongodb.net/users?retryWrites=true&w=majority"
-    // console.log(process.env.MONGO_URI, 'mongo uri')
     await mongoose.connect(
-      'mongodb+srv://wings:wings@cluster0.uve59.mongodb.net/users?retryWrites=true&w=majority',
+      'mongodb+srv://wings:wings@cluster0.uve59.mongodb.net/stores?retryWrites=true&w=majority',
       {
         useNewUrlParser: true,
         useUnifiedTopology: true,
@@ -60,10 +58,9 @@ const start = async () => {
     listenCreateUser(client());
 
     const PORT = 5000;
-    // console.log(app, 'this is the app variable')
 
     app.listen(PORT, () => {
-      console.log(`User service started on ${PORT}`);
+      console.log(`Store service started on ${PORT}`);
     });
   } catch (err) {
     console.error(err);

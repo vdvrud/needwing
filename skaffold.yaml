@@ -16,6 +16,15 @@ build:
         manual:
           - src: 'src/**/*.ts'
             dest: .
+    - image: vdvrud/needwing-store-service
+      context: stores
+      # context is the directory containing the files
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: 'src/**/*.ts'
+            dest: .
     # - image: vdvrud/client
     #   context: client
     #   docker:

@@ -11,14 +11,14 @@ spec:
       http:
         paths:
           # - path: /api/users/?(.*)
-          - path: /users/?(.*)
+          - path: /api/users/?(.*)
             backend:
               serviceName: user-srv
               servicePort: 5000
-          # - path: /api/tickets/?(.*)
-          #   backend:
-          #     serviceName: tickets-srv
-          #     servicePort: 3000
+          - path: /api/stores/?(.*)
+            backend:
+              serviceName: store-srv
+              servicePort: 5000
           # - path: /api/orders/?(.*)
           #   backend:
           #     serviceName: orders-srv

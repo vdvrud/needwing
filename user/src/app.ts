@@ -10,8 +10,7 @@ app.use(urlencoded({ limit: '50mb', extended: false }));
 
 
 
-app.use(userRouter);
-// console.log('started')
+app.use('/api/users', userRouter);
 app.get('/users/test', (req, res) => {
   res.send('Server is working on needwing.com')
 });
